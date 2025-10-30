@@ -1,6 +1,6 @@
 # 🌳 treemk 📦 - Project Structure Generator
 
-**Generate complete project folders in seconds - No files needed!**
+**Generate complete project folders in seconds**
 
 ## 🚀 Quick Start (3 Ways)
 
@@ -228,7 +228,7 @@ cat file.txt | npx treemk -o ./app
 
 ## 🎓 Complete Tutorial
 
-See [TUTORIAL.md](./docs/TUTORIAL.md) for step-by-step guide.
+See [QuickStart.md] for step-by-step guide.
 
 ## 📄 License
 
