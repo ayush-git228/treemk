@@ -1,0 +1,54 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+
+# Build and cache
+dist/
+build/
+.cache/
+.temp/
+.tmp/
+coverage/
+.nyc_output/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# IDE and editor files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+.DS_Store
+Thumbs.db
+
+# OS-generated files
+*.swp
+*.swo
+*~
+ehthumbs.db
+Icon?
+
+# Logs
+*.log
+logs/
+debug.log
+error.log
+
+# Testing artifacts
+setup-test/
+test-output/
+jest-stare/
+
+# Treemk specific temp dirs
+test-complex/
+treemk-output/
+examples/output/

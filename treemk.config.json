@@ -1,0 +1,7 @@
+{
+  "output": "./my-app",
+  "boilerplate": true,
+  "gitInit": true,
+  "install": false,
+  "verbose": true
+}

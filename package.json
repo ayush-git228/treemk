@@ -1,0 +1,46 @@
+{
+  "name": "treemk",
+  "version": "1.0.0",
+  "description": "A CLI tool to generate project structures from text, JSON templates, file, with boilerplate and git integration",
+  "main": "index.js",
+  "type": "module",
+  "bin": {
+    "treemk": "./index.js"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "test": "node index.js --help"
+  },
+  "keywords": [
+    "cli",
+    "scaffold",
+    "structure",
+    "generator",
+    "boilerplate",
+    "template",
+    "mkdir",
+    "project-structure",
+    "project-structure-generator",
+    "project-scaffolding",
+    "folder-structure",
+    "folder-generator",
+    "automation",
+    "developer-tools"
+  ],
+  "author": "Ayush Gupta <ayushgupta228@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ayush-git228/treemk.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ayush-git228/treemk/issues"
+  },
+  "homepage": "https://github.com/ayush-git228/treemk#readme",
+  "dependencies": {
+    "chalk": "^5.6.2"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
