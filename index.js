@@ -133,6 +133,10 @@ function printHelp() {
 }
 
 async function resolveInputPath(inputPath) {
+  if (!inputPath) {
+    return null;
+  }
+
   // Try absolute path first
   let resolved = path.resolve(inputPath);
   try {
@@ -176,7 +180,7 @@ async function resolveInputPath(inputPath) {
     }
   }
 
-  throw new Error(`Cannot find file: ${inputPath}`);
+  return null;
 }
 
 async function setupDynamicConfig(autoRun = false) {
@@ -222,69 +226,8 @@ async function setupDynamicConfig(autoRun = false) {
     if (autoRun) {
       console.log(chalk.blue("\n🚀 Running treemk with this config...\n"));
       
-      const options = {
-        output: configData.output,
-        boilerplate: configData.boilerplate,
-        gitInit: configData.gitInit,
-        install: configData.install,
-        dryRun: false,
-        gitCommit: false,
-        gitPush: false,
-        preview: false,
-        verbose: true,
-      };
-      
-      let input = '';
-      
-      // Handle built-in template
-      if (configData.template) {
-        input = getBuiltInTemplate(configData.template);
-        if (input) {
-          console.log(chalk.blue('ℹ') + ` Using built-in template: ${configData.template}`);
-        } else {
-          console.error(chalk.red('✗') + ` Unknown built-in template: ${configData.template}`);
-          console.log('Available templates: react, node, python');
-          process.exit(1);
-        }
-      }
-      // Handle file input
-      else if (configData.input) {
-        try {
-          const resolvedPath = await resolveInputPath(configData.input);
-          console.log(chalk.blue('ℹ') + ` Reading from: ${resolvedPath}`);
-          input = await fs.readFile(resolvedPath, 'utf8');
-        } catch (error) {
-          console.error(chalk.red('✗') + ` Failed to read input file: ${error.message}`);
-          console.log(chalk.yellow('💡 Tip: Make sure the file exists at the specified path'));
-          process.exit(1);
-        }
-      }
-      
-      // If we have input, proceed with structure generation
-      if (input && input.trim()) {
-        try {
-          const generator = new StructureGenerator(options);
-          const paths = await generator.parseInput(input.trim());
-          
-          if (paths.length === 0) {
-            console.error(chalk.red('✗') + ' No valid paths found in input');
-            process.exit(1);
-          }
-          
-          await generator.createStructure(paths);
-          console.log('\n' + chalk.green('✓ Success!') + ' Structure created at: ' + chalk.cyan(path.resolve(options.output)));
-        } catch (error) {
-          console.error(chalk.red('✗') + ` Error: ${error.message}`);
-          if (options.verbose) {
-            console.error(error.stack);
-          }
-          process.exit(1);
-        }
-      } else {
-        console.error(chalk.red('✗') + ' No valid input found');
-        console.log(chalk.yellow('💡 Tip: Specify a valid template or input file in the setup wizard'));
-        process.exit(1);
-      }
+      // Run main logic with the config
+      await runWithConfig(configData);
     } else {
       console.log(chalk.cyan("\nYou can now run:"));
       console.log(chalk.yellow("   treemk\n"));
@@ -292,6 +235,77 @@ async function setupDynamicConfig(autoRun = false) {
   } catch (error) {
     rl.close();
     throw error;
+  }
+}
+
+async function runWithConfig(config) {
+  const options = {
+    output: config.output || './output',
+    boilerplate: config.boilerplate || false,
+    gitInit: config.gitInit || false,
+    install: config.install || false,
+    dryRun: false,
+    gitCommit: config.gitCommit || false,
+    gitPush: config.gitPush || false,
+    preview: false,
+    verbose: true,
+  };
+  
+  let input = '';
+  
+  // Handle built-in template
+  if (config.template) {
+    input = getBuiltInTemplate(config.template);
+    if (input) {
+      console.log(chalk.blue('ℹ') + ` Using built-in template: ${config.template}`);
+    } else {
+      console.error(chalk.red('✗') + ` Unknown built-in template: ${config.template}`);
+      console.log('Available templates: react, node, python');
+      process.exit(1);
+    }
+  }
+  // Handle file input
+  else if (config.input) {
+    const resolvedPath = await resolveInputPath(config.input);
+    if (!resolvedPath) {
+      console.error(chalk.red('✗') + ` Failed to find input file: ${config.input}`);
+      console.log(chalk.yellow('💡 Tip: Make sure the file exists at the specified path'));
+      process.exit(1);
+    }
+    
+    try {
+      console.log(chalk.blue('ℹ') + ` Reading from: ${resolvedPath}`);
+      input = await fs.readFile(resolvedPath, 'utf8');
+    } catch (error) {
+      console.error(chalk.red('✗') + ` Failed to read input file: ${error.message}`);
+      process.exit(1);
+    }
+  }
+  
+  // If we have input, proceed with structure generation
+  if (input && input.trim()) {
+    try {
+      const generator = new StructureGenerator(options);
+      const paths = await generator.parseInput(input.trim());
+      
+      if (paths.length === 0) {
+        console.error(chalk.red('✗') + ' No valid paths found in input');
+        process.exit(1);
+      }
+      
+      await generator.createStructure(paths);
+      console.log('\n' + chalk.green('✓ Success!') + ' Structure created at: ' + chalk.cyan(path.resolve(options.output)));
+    } catch (error) {
+      console.error(chalk.red('✗') + ` Error: ${error.message}`);
+      if (options.verbose) {
+        console.error(error.stack);
+      }
+      process.exit(1);
+    }
+  } else {
+    console.error(chalk.red('✗') + ' No valid input found');
+    console.log(chalk.yellow('💡 Tip: Specify a valid template or input file in the config'));
+    process.exit(1);
   }
 }
 
@@ -470,7 +484,7 @@ async function main() {
   }
 
   // Check for inline JSON input
-  if (options.jsonInput && !input) {
+  else if (options.jsonInput) {
     try {
       // Validate JSON
       JSON.parse(options.jsonInput);
@@ -483,7 +497,7 @@ async function main() {
   }
 
   // Check for piped input (stdin)
-  if (!process.stdin.isTTY && !input) {
+  else if (!process.stdin.isTTY) {
     input = await readFromStdin();
     if (input) {
       console.log(chalk.blue('ℹ') + ' Reading from stdin (piped input)');
@@ -507,6 +521,7 @@ async function main() {
   if (options.templateUse && !input) {
     try {
       input = await loadTemplate(options.templateUse);
+      console.log(chalk.blue('ℹ') + ` Using saved template: ${options.templateUse}`);
     } catch (error) {
       console.error(chalk.red('✗') + ` ${error.message}`);
       process.exit(1);
@@ -515,16 +530,22 @@ async function main() {
 
   // Read from file if specified (with smart path resolution)
   if (options.input && !input) {
-    try {
-      const resolvedPath = await resolveInputPath(options.input);
-      console.log(chalk.blue('ℹ') + ` Reading from: ${resolvedPath}`);
-      input = await fs.readFile(resolvedPath, 'utf8');
-    } catch (error) {
-      console.error(chalk.red('✗') + ` Failed to read input file: ${error.message}`);
+    const resolvedPath = await resolveInputPath(options.input);
+    
+    if (!resolvedPath) {
+      console.error(chalk.red('✗') + ` Cannot find file: ${options.input}`);
       console.log(chalk.yellow('💡 Tip: File paths can be:'));
       console.log('   - Absolute: /home/user/structure.txt');
       console.log('   - Relative: ./structure.txt or ../structure.txt');
       console.log('   - Or just filename if in common locations (Downloads, Documents, Desktop)');
+      process.exit(1);
+    }
+    
+    try {
+      console.log(chalk.blue('ℹ') + ` Reading from: ${resolvedPath}`);
+      input = await fs.readFile(resolvedPath, 'utf8');
+    } catch (error) {
+      console.error(chalk.red('✗') + ` Failed to read input file: ${error.message}`);
       process.exit(1);
     }
   }
@@ -562,7 +583,7 @@ async function main() {
     }
   }
 
-  if (!input) {
+  if (!input || !input.trim()) {
     console.error(chalk.red('✗') + ' No input provided.');
     console.log('\n' + chalk.bold('Quick start options:'));
     console.log('  1. From file:      treemk -i structure.txt -o ./app');
