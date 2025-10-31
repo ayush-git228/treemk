@@ -183,7 +183,6 @@ async function setupDynamicConfig(autoRun = false) {
   console.log(chalk.cyan.bold("\n🛠️  treemk Setup Wizard"));
   console.log(chalk.gray("--------------------------------\n"));
 
-  // Simple readline-based prompts (no external dependencies)
   const readline = await import('readline');
   const rl = readline.createInterface({
     input: process.stdin,
@@ -195,7 +194,7 @@ async function setupDynamicConfig(autoRun = false) {
   try {
     console.log(chalk.yellow('Answer the following questions (press Enter for defaults):\n'));
 
-    const template = await question(chalk.cyan('📦 Choose template (node/react/python) or file name [node]: '));
+    const template = await question(chalk.cyan('📦 Choose template (node/react/python) or file path [node]: '));
     const output = await question(chalk.cyan('📁 Output folder [./my-project]: '));
     const boilerplateInput = await question(chalk.cyan('🧩 Add boilerplate? (y/n) [y]: '));
     const gitInitInput = await question(chalk.cyan('🔗 Initialize Git? (y/n) [y]: '));
@@ -217,34 +216,78 @@ async function setupDynamicConfig(autoRun = false) {
     console.log(chalk.green("\n✅ treemk.config.json created successfully!"));
     console.log(chalk.cyan("\nConfig saved:"));
     console.log(JSON.stringify(configData, null, 2));
-    console.log(chalk.cyan("\nYou can now run:"));
-    console.log(chalk.yellow("   treemk\n"));
 
     rl.close();
 
     if (autoRun) {
-      console.log(chalk.blue("🚀 Running treemk with this config...\n"));
+      console.log(chalk.blue("\n🚀 Running treemk with this config...\n"));
       
-      // Re-run main with config
-      const options = configData;
+      const options = {
+        output: configData.output,
+        boilerplate: configData.boilerplate,
+        gitInit: configData.gitInit,
+        install: configData.install,
+        dryRun: false,
+        gitCommit: false,
+        gitPush: false,
+        preview: false,
+        verbose: true,
+      };
       
       let input = '';
       
-      if (options.template) {
-        input = getBuiltInTemplate(options.template);
-        console.log(chalk.blue('ℹ') + ` Using built-in template: ${options.template}`);
-      } else if (options.input) {
-        const resolvedPath = await resolveInputPath(options.input);
-        console.log(chalk.blue('ℹ') + ` Reading from: ${resolvedPath}`);
-        input = await fs.readFile(resolvedPath, 'utf8');
+      // Handle built-in template
+      if (configData.template) {
+        input = getBuiltInTemplate(configData.template);
+        if (input) {
+          console.log(chalk.blue('ℹ') + ` Using built-in template: ${configData.template}`);
+        } else {
+          console.error(chalk.red('✗') + ` Unknown built-in template: ${configData.template}`);
+          console.log('Available templates: react, node, python');
+          process.exit(1);
+        }
+      }
+      // Handle file input
+      else if (configData.input) {
+        try {
+          const resolvedPath = await resolveInputPath(configData.input);
+          console.log(chalk.blue('ℹ') + ` Reading from: ${resolvedPath}`);
+          input = await fs.readFile(resolvedPath, 'utf8');
+        } catch (error) {
+          console.error(chalk.red('✗') + ` Failed to read input file: ${error.message}`);
+          console.log(chalk.yellow('💡 Tip: Make sure the file exists at the specified path'));
+          process.exit(1);
+        }
       }
       
-      if (input) {
-        const generator = new StructureGenerator(options);
-        const paths = await generator.parseInput(input.trim());
-        await generator.createStructure(paths);
-        console.log('\n' + chalk.green('✓ Success!') + ' Structure created at: ' + chalk.cyan(path.resolve(options.output || './output')));
+      // If we have input, proceed with structure generation
+      if (input && input.trim()) {
+        try {
+          const generator = new StructureGenerator(options);
+          const paths = await generator.parseInput(input.trim());
+          
+          if (paths.length === 0) {
+            console.error(chalk.red('✗') + ' No valid paths found in input');
+            process.exit(1);
+          }
+          
+          await generator.createStructure(paths);
+          console.log('\n' + chalk.green('✓ Success!') + ' Structure created at: ' + chalk.cyan(path.resolve(options.output)));
+        } catch (error) {
+          console.error(chalk.red('✗') + ` Error: ${error.message}`);
+          if (options.verbose) {
+            console.error(error.stack);
+          }
+          process.exit(1);
+        }
+      } else {
+        console.error(chalk.red('✗') + ' No valid input found');
+        console.log(chalk.yellow('💡 Tip: Specify a valid template or input file in the setup wizard'));
+        process.exit(1);
       }
+    } else {
+      console.log(chalk.cyan("\nYou can now run:"));
+      console.log(chalk.yellow("   treemk\n"));
     }
   } catch (error) {
     rl.close();
