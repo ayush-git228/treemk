@@ -1,4 +1,5 @@
 {
+  "template": "node",
   "output": "./my-app",
   "boilerplate": true,
   "gitInit": true,

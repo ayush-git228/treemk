@@ -5,12 +5,12 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import chalk from 'chalk';
 import { StructureGenerator } from './lib/structure-generator.js';
-import { 
-  saveTemplate, 
-  loadTemplate, 
-  listTemplates, 
+import {
+  saveTemplate,
+  loadTemplate,
+  listTemplates,
   removeTemplate,
-  getBuiltInTemplate 
+  getBuiltInTemplate
 } from './lib/templates.js';
 import { loadConfig, mergeOptions } from './lib/config.js';
 
@@ -21,7 +21,7 @@ async function readFromStdin() {
   return new Promise((resolve, reject) => {
     let data = '';
     process.stdin.setEncoding('utf8');
-    
+
     process.stdin.on('data', chunk => {
       data += chunk;
     });
@@ -53,70 +53,76 @@ function printHelp() {
   console.log('  -d, --dry-run                Show what would be created without writing');
   console.log('  -j, --json                   Parse input as JSON');
   console.log('  -h, --help                   Show this help message\n');
-  
+
   console.log(chalk.bold('Template Management:'));
   console.log('  --template <name>         Use built-in template (react|node|python)');
   console.log('  --template-save <name>    Save current input as reusable template');
   console.log('  --template-use <name>     Load and use a saved template');
   console.log('  --template-list              List all saved templates');
   console.log('  --template-remove <name>  Delete a saved template\n');
-  
+
   console.log(chalk.bold('Git Integration:'));
   console.log('  -g, --git-init               Initialize git repository');
   console.log('  --git-commit                 Create initial commit');
   console.log('  --git-push                   Push to GitHub (requires gh CLI)\n');
-  
+
   console.log(chalk.bold('Advanced Options:'));
   console.log('  --install                    Auto-install dependencies (npm/pip)');
   console.log('  --preview                    Preview structure as ASCII tree');
   console.log('  -u, --from-url <url>         Fetch structure from URL');
   console.log('  --text <structure>           Pass structure as text argument');
   console.log('  --json-input <json>          Pass JSON structure as argument');
+  console.log('  --setup                      Interactive setup wizard');
+  console.log('  --setup --run                Setup and run immediately');
   console.log('  --config                     Use treemk.config.json if present\n');
-  
+
   console.log(chalk.bold('Examples:'));
   console.log('  # From file (any location)');
   console.log('  treemk -i ~/Downloads/tree.txt -o ./myapp -b\n');
-  
+
   console.log('  # From stdin (pipe)');
   console.log('  cat structure.txt | treemk -o ./myapp -b\n');
-  
+
   console.log('  # Inline text (no file needed!)');
   console.log('  treemk --text "src/index.js\\nsrc/app.js\\nREADME.md" -o ./app\n');
-  
+
   console.log('  # Inline JSON (no file needed!)');
   console.log('  treemk --json-input \'{"src":["index.js"]}\' -o ./app\n');
-  
+
+  console.log('  # Interactive setup');
+  console.log('  treemk --setup --run\n');
+
   console.log('  # Template workflow');
   console.log('  treemk --template-use myproject -o ./app --git-init\n');
-  
+
   console.log('  # Full automation');
   console.log('  treemk --template node -o ./api -b --install -g --git-commit\n');
-  
+
   console.log('  # Preview before creating');
   console.log('  treemk -i structure.txt --preview\n');
-  
+
   console.log(chalk.bold('Config File (treemk.config.json):'));
   console.log('  Place in your working directory for default options:');
   console.log('  {');
+  console.log('    "template": "node",');
   console.log('    "output": "./app",');
   console.log('    "boilerplate": true,');
   console.log('    "gitInit": true,');
   console.log('    "install": true');
   console.log('  }\n');
-  
+
   console.log(chalk.bold('Input Format Examples:'));
   console.log('\n  Tree format:');
   console.log('  src/');
   console.log('  ├── components/');
   console.log('  │   └── App.jsx');
   console.log('  └── index.js\n');
-  
+
   console.log('  Plain paths:');
   console.log('  src/components/App.jsx');
   console.log('  src/index.js');
   console.log('  package.json\n');
-  
+
   console.log('  JSON format:');
   console.log('  {');
   console.log('    "src": {');
@@ -173,11 +179,86 @@ async function resolveInputPath(inputPath) {
   throw new Error(`Cannot find file: ${inputPath}`);
 }
 
+async function setupDynamicConfig(autoRun = false) {
+  console.log(chalk.cyan.bold("\n🛠️  treemk Setup Wizard"));
+  console.log(chalk.gray("--------------------------------\n"));
+
+  // Simple readline-based prompts (no external dependencies)
+  const readline = await import('readline');
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+
+  const question = (query) => new Promise((resolve) => rl.question(query, resolve));
+
+  try {
+    console.log(chalk.yellow('Answer the following questions (press Enter for defaults):\n'));
+
+    const template = await question(chalk.cyan('📦 Choose template (node/react/python) or file name [node]: '));
+    const output = await question(chalk.cyan('📁 Output folder [./my-project]: '));
+    const boilerplateInput = await question(chalk.cyan('🧩 Add boilerplate? (y/n) [y]: '));
+    const gitInitInput = await question(chalk.cyan('🔗 Initialize Git? (y/n) [y]: '));
+    const installInput = await question(chalk.cyan('📦 Auto-install dependencies? (y/n) [n]: '));
+
+    const templateValue = template.trim() || 'node';
+    const isBuiltInTemplate = ['node', 'react', 'python'].includes(templateValue);
+
+    const configData = {
+      ...(isBuiltInTemplate ? { template: templateValue } : { input: templateValue }),
+      output: output.trim() || './my-project',
+      boilerplate: !boilerplateInput.trim() || boilerplateInput.toLowerCase().startsWith('y'),
+      gitInit: !gitInitInput.trim() || gitInitInput.toLowerCase().startsWith('y'),
+      install: installInput.toLowerCase().startsWith('y')
+    };
+
+    await fs.writeFile('treemk.config.json', JSON.stringify(configData, null, 2), 'utf8');
+
+    console.log(chalk.green("\n✅ treemk.config.json created successfully!"));
+    console.log(chalk.cyan("\nConfig saved:"));
+    console.log(JSON.stringify(configData, null, 2));
+    console.log(chalk.cyan("\nYou can now run:"));
+    console.log(chalk.yellow("   treemk\n"));
+
+    rl.close();
+
+    if (autoRun) {
+      console.log(chalk.blue("🚀 Running treemk with this config...\n"));
+      
+      // Re-run main with config
+      const options = configData;
+      
+      let input = '';
+      
+      if (options.template) {
+        input = getBuiltInTemplate(options.template);
+        console.log(chalk.blue('ℹ') + ` Using built-in template: ${options.template}`);
+      } else if (options.input) {
+        const resolvedPath = await resolveInputPath(options.input);
+        console.log(chalk.blue('ℹ') + ` Reading from: ${resolvedPath}`);
+        input = await fs.readFile(resolvedPath, 'utf8');
+      }
+      
+      if (input) {
+        const generator = new StructureGenerator(options);
+        const paths = await generator.parseInput(input.trim());
+        await generator.createStructure(paths);
+        console.log('\n' + chalk.green('✓ Success!') + ' Structure created at: ' + chalk.cyan(path.resolve(options.output || './output')));
+      }
+    }
+  } catch (error) {
+    rl.close();
+    throw error;
+  }
+}
+
 async function main() {
   const args = process.argv.slice(2);
 
   // Parse arguments
   const cliOptions = {
+    setup: false,
+    runAfterSetup: false,
     input: null,
     output: null,
     boilerplate: false,
@@ -203,8 +284,14 @@ async function main() {
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
-    
+
     switch (arg) {
+      case '--setup':
+        cliOptions.setup = true;
+        break;
+      case '--run':
+        cliOptions.runAfterSetup = true;
+        break;
       case '--input':
       case '-i':
         cliOptions.input = args[++i];
@@ -278,10 +365,19 @@ async function main() {
         cliOptions.help = true;
         break;
       default:
-        if (!arg.startsWith('-') && !cliOptions.input) {
+        if (arg.startsWith('-')) {
+          console.warn(chalk.yellow('⚠') + ` Unknown option: ${arg}`);
+        } else if (!cliOptions.input) {
           cliOptions.input = arg;
         }
+        break;
     }
+  }
+
+  // Handle setup flag (interactive config wizard)
+  if (cliOptions.setup) {
+    await setupDynamicConfig(cliOptions.runAfterSetup);
+    return;
   }
 
   // Handle help
@@ -431,6 +527,7 @@ async function main() {
     console.log('  3. Inline JSON:    treemk --json-input \'{"src":["index.js"]}\' -o ./app');
     console.log('  4. From pipe:      cat structure.txt | treemk -o ./app');
     console.log('  5. Use template:   treemk --template node -o ./app');
+    console.log('  6. Interactive:    treemk --setup --run');
     console.log('\nRun ' + chalk.cyan('treemk --help') + ' for full documentation.');
     process.exit(1);
   }
@@ -450,14 +547,14 @@ async function main() {
 
   try {
     const paths = await generator.parseInput(input.trim());
-    
+
     if (paths.length === 0) {
       console.error(chalk.red('✗') + ' No valid paths found in input');
       process.exit(1);
     }
-    
+
     await generator.createStructure(paths);
-    
+
     if (!options.preview && !options.dryRun) {
       console.log('\n' + chalk.green('✓ Success!') + ' Structure created at: ' + chalk.cyan(path.resolve(options.output || './output')));
     }

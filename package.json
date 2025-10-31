@@ -38,7 +38,8 @@
   },
   "homepage": "https://github.com/ayush-git228/treemk#readme",
   "dependencies": {
-    "chalk": "^5.6.2"
+    "chalk": "^5.6.2",
+    "inquirer": "^12.10.0"
   },
   "engines": {
     "node": ">=16.0.0"
