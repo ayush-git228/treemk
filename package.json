@@ -1,6 +1,6 @@
 {
   "name": "treemk",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "A CLI tool to generate project structures from text, JSON templates, file, with boilerplate and git integration",
   "main": "index.js",
   "type": "module",
